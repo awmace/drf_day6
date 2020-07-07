@@ -1,17 +1,23 @@
 import re
 
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_jwt.serializers import jwt_payload_handler
 from rest_framework_jwt.serializers import jwt_encode_handler
 
+from rest_framework.generics import ListAPIView
+from rest_framework.filters import SearchFilter
+from rest_framework.filters import OrderingFilter
+
 from api.authentication import JWTAuthentication
-from api.models import User
-from api.serializers import UserModelSerializer
+from api.filter import LimitFilter, ComputerFilterSet
+from api.models import User, Computer
+from api.paginations import NpfPageNumberPagination, NpfLimitPagination, NpfCoursePagination
+from api.serializers import UserModelSerializer, ComputerModelSerializer
 from utils.response import APIResponse
 from rest_framework_jwt.settings import APISettings
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-
 
 
 class UserDetailAPIView(APIView):
@@ -66,3 +72,31 @@ class LoginAPIView(APIView):
             return APIResponse(results={"username": user_obj.username}, token=token)
 
         return APIResponse(data_message="game over")
+
+
+class ComputerListAPIView(ListAPIView):
+    queryset = Computer.objects.all()
+    serializer_class = ComputerModelSerializer
+
+    # 配置过滤器类：
+    # (1)DjangoFilterBackend：精确查询  (2)LimitFilter：自定义简单分页
+    # (3)SearchFilter:模糊查询          (4)OrderingFilter：排序
+    filter_backends = [SearchFilter, OrderingFilter, LimitFilter,DjangoFilterBackend]
+    # 指定当前搜索条件:模糊查询
+    # 前端为url?search=a :查询name包含a的数据
+    search_fields = ['name', 'price']  # 一一查询
+    # 指定排序的条件
+    # ordering = ["price"]
+
+    # 指定分页器,不能用元组或列表，会报错,这里是基础分页器
+    # pagination_class = NpfPageNumberPagination
+
+    # 这里是偏移分页器
+    # pagination_class = NpfLimitPagination
+
+    # 这里是游标分页器
+    # pagination_class = NpfCoursePagination
+
+    # 查询价格大于5000  小于 7000  电脑
+    # django-filter 查询   通过filter_class指定过滤器
+    filter_class = ComputerFilterSet
